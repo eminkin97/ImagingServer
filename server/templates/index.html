@@ -841,10 +841,19 @@
 				$("#shape").val(json.shape);
 				$("#alphanumeric").val(json.alphanumeric);
 				$("#description").val(json.description);
+
+				//get associated metadata for target, and update atrribute list in gcs viewer with the data when that target is clicked
+				$("#id_ptype").val(json.ptype);
+				$("#id_orientation").val(json.orientation);
+				$("#id_shape").val(json.shape);
+				$("#id_alphanumeric").val(json.alphanumeric);
+				$("#id_description").val(json.description);
+				
 			}
 		})
 	}
 
+		
 	// submit given target to server
 	function tsubmit(pk) {
 		console.log("submit")
