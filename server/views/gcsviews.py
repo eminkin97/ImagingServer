@@ -389,7 +389,7 @@ class GCSViewset(viewsets.ModelViewSet):
 					return Response({'error':str(e)})
 
 			os.remove(target.picture.path)
-			Target.objects.delete(pk=request.data['pk'])
+			Target.objects.filter(pk=request.data['pk']).delete()
 			return HttpResponse('Success')
 		except Target.DoesNotExist:
 			pass

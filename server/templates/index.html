@@ -415,6 +415,7 @@
 				PictureArray.prototype.allow = true;
 			},
      			error: function(XMLHttpRequest,textStatus,erroThrown){
+				console.log(XMLHttpRequest);
 				console.log("Status: " +textStatus +" Error: "+erroThrown);
 				/* TODO: POSSIBLE BUG 504 may be thrown on initial request for image
 				       			due to waiting too long */
@@ -519,6 +520,9 @@
 			type:"POST",
 			success: function(response) {
 				// keep track of existing targets to see if any were removed
+				
+			
+
 				targets_copy = $.extend({}, targets); // shallow copy of targets hashmap
 				resp_targets = JSON.parse(response).targets;
 				resp_targets.forEach(function(t) {
@@ -541,7 +545,9 @@
 								$("#"+pk).toggleClass("selected");
 							}
 							else {
+								$("#focused").css("transform", "scale(1,1)");
 								picview = false;
+								panning=false;
 								setFocusedImage(this);
 							}
 							return false;
@@ -558,15 +564,18 @@
 							elem.classList.add("sent");
 						}
 					}
-					for (t in targets_copy) {
-						// targets that still exist in targets_copy were not in response
-						// they were deleted from server so remove them
-						if (!targets_copy[t]) {
-							// target was deleted
-							$(targets_copy[t]).remove();
-						}
-					}
 				});
+				for (var t in targets_copy) {
+					// targets that still exist in targets_copy were not in response
+					// they were deleted from server so remove them
+					if (targets_copy[t]) {
+						// target was deleted
+						console.log("removed: "+t);
+						$(targets_copy[t]).remove();
+						delete targets[t];
+					}
+				}
+
 			}
 		});
 	}
@@ -840,7 +849,7 @@
 					.append("<tr><td>Longitude: </td><td>"+londeg+"deg "+lonmin+"min "+lonsec+"sec"+"</td></tr>")
 					.append("<tr><td>Type: </td><td>"+json.ptype+"</td></tr>")
 					.append("<tr><td>Description:</td><td>"+json.description+"</td></tr>")
-					.append("<tr><td><button id='targsubmit' onclick='tsubmit(" + pk+");' class='btn btn-primary'>Submit Target</button></td></tr>");
+					.append("<tr><td><button id='targsubmit' onclick='tsubmit(" + pk+");' class='btn btn-primary'>Submit</button></td></tr>");
 				$("#lpalette").val(json.alphanumeric_color);
 				$("#palette").val(json.background_color);
 				$("#orientation").val(json.orientation);
@@ -1174,7 +1183,7 @@
 						<td><input name="alphanumeric_color" type="text" value="black" id="lpalette"/></td>
 					</tr>
 				</table>
-				<button type="button" class="btn btn-primary" id="submit"/>Submit</button>
+				<button type="button" class="btn btn-primary" id="submit"/>Crop</button>
 			</form>
 		</div>
 		<div id="data">
