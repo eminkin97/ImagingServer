@@ -316,7 +316,7 @@ class GCSViewset(viewsets.ModelViewSet):
 		#save the changes
 		target.save()
 
-		return Response("success")
+		return Response({"pk":target.pk})
 
 	@list_route(methods=['post'])
 	def targetEdit(self,request,pk=None):

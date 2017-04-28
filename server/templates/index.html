@@ -319,8 +319,11 @@
 
 		// sets up form submission
 	$(function form_submit_setup() {
+		$("#submitandinterop").on("click",function(event){
+			$("#submit").trigger("click",[{"send_to_interop":true}]);
+		});
 		// on user submit
-		$("#submit").on("click", function(event) {
+		$("#submit").on("click", function(event,send_to_interop) {
 			// allow for ajax
 			event.preventDefault();
 			// get all form attributes
@@ -359,6 +362,11 @@
 						url: "{% url 'gcs-targetCreate'%}",
 						type: "POST",
 						data: input_array,
+						success: function(response){
+							if(send_to_interop){
+								tsubmit(response["pk"]);
+							}
+						},
 						failure: function(response) {
 							bootbox.alert(response);
 						}
@@ -1184,6 +1192,7 @@
 					</tr>
 				</table>
 				<button type="button" class="btn btn-primary" id="submit"/>Crop</button>
+				<button type="button" class="btn btn-primary" id="submitandinterop">Crop & Submit</button>
 			</form>
 		</div>
 		<div id="data">
