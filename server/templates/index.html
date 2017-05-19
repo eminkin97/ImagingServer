@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta http-equiv="cache-control" content="no-cache"/>
 <meta charset="utf-8">
 <title>Picture Viewer</title>
 
@@ -9,6 +10,8 @@
 <script type="text/javascript" src="{{STATIC_URL}}js/bootbox.min.js"></script>
 <script type="text/javascript" src="{{STATIC_URL}}js/bootstrap.min.js"></script>
 <script type="text/javascript" src="{{STATIC_URL}}js/spectrum.js"></script>
+<script type="text/javascript" src="{{STATIC_URL}}js/jquery.imageReloader.js"></script>
+
 
 
 <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}css/spectrum.css" />
@@ -193,10 +196,12 @@
 
 	// get next picture
 	PictureArray.prototype.next = function() {
+	//console.log("WF");
 		// if a new array has arrived, lock these allow
 		// the new array checks the current state
 		// this might not be a problem since js is single threaded
 		if (!PictureArray.prototype.allow) {
+//console.log("not allowed");	
 			return;
 		}
 		//console.log(this);
@@ -208,6 +213,7 @@
 			}
 
 			if (!PictureArray.prototype.allowForward) {
+
 				return;
 			}
 			PictureArray.prototype.allowForward = false;
@@ -319,8 +325,11 @@
 
 		// sets up form submission
 	$(function form_submit_setup() {
+		$("#submitandinterop").on("click",function(event){
+			$("#submit").trigger("click",[{"send_to_interop":true}]);
+		});
 		// on user submit
-		$("#submit").on("click", function(event) {
+		$("#submit").on("click", function(event,send_to_interop) {
 			// allow for ajax
 			event.preventDefault();
 			// get all form attributes
@@ -359,6 +368,11 @@
 						url: "{% url 'gcs-targetCreate'%}",
 						type: "POST",
 						data: input_array,
+						success: function(response){
+							if(send_to_interop){
+								tsubmit(response["pk"]);
+							}
+						},
 						failure: function(response) {
 							bootbox.alert(response);
 						}
@@ -393,6 +407,14 @@
 			data: {'numPics': NUM_FETCH},
 			success: function(response) {
 				PictureArray.prototype.allow = false;
+				//console.log(response);
+				if(response.length == 0){
+					said_no_pictures = false;
+					PictureArray.prototype.allowForward=true;
+					PictureArray.prototype.allow = true;
+					//console.log("die");
+					return;
+				}
 				cache = new PictureArray(JSON.parse(JSON.stringify(response)));
 				/*
 				for (var i=0;i<response.length;i++) {
@@ -415,6 +437,7 @@
 				PictureArray.prototype.allow = true;
 			},
      			error: function(XMLHttpRequest,textStatus,erroThrown){
+				console.log(XMLHttpRequest);
 				console.log("Status: " +textStatus +" Error: "+erroThrown);
 				/* TODO: POSSIBLE BUG 504 may be thrown on initial request for image
 				       			due to waiting too long */
@@ -463,10 +486,13 @@
   		// do not change this to use function pointers instead of the anonymous function
 	  	// that messes with the value of 'this' inside the function call because javascript
       		looping = setInterval(function(){
-				console.log("looping");
+			//	console.log("looping");
           			if (image_cache != null) {
             				image_cache.next();
-          			}
+				} else{
+					//console.log("FORDWARD");
+					forwardPicture();
+				}
       			}, $("#loop_interval").val()*1000);
       			console.log("loop");
     		
@@ -498,7 +524,7 @@
 					document.getElementById("trigger_on").value = "false";
 					if(isLooping == false && loop_start_by_heartbeat == 0){
 						isLooping=true;
-						console.log("STARTING BY HEARTBEAT");
+						//console.log("STARTING BY HEARTBEAT");
 	  					loop();
 					}	  				
 					loop_start_by_heartbeat=1;
@@ -519,6 +545,9 @@
 			type:"POST",
 			success: function(response) {
 				// keep track of existing targets to see if any were removed
+				
+			
+
 				targets_copy = $.extend({}, targets); // shallow copy of targets hashmap
 				resp_targets = JSON.parse(response).targets;
 				resp_targets.forEach(function(t) {
@@ -530,7 +559,8 @@
 						image.className = "thumbnail";
 						image.src = t.image;
 						image.id = t.pk;
-						if (t.sent) {
+					
+						if (t.sent == "False") {
 							image.classList.add("sent");
 						}
 						targets[t.pk] = div; // keep reference to parent div in hashmap
@@ -541,32 +571,38 @@
 								$("#"+pk).toggleClass("selected");
 							}
 							else {
+								$("#focused").css("transform", "scale(1,1)");
 								picview = false;
+								panning=false;
 								setFocusedImage(this);
 							}
 							return false;
 						});
 						div.appendChild(image);
+						$("#image").imageReloader();	
 						$("#targets").append(div);
 					}
 					else {
 						// target already exists, remove from copy
 						targets_copy[t.pk] = undefined;
-						if (t.sent) {
+						if (t.sent == "False") {
 							// if the target has been sent, make sure it is marked sent
 							var elem = document.getElementById(t.pk);
 							elem.classList.add("sent");
 						}
 					}
-					for (t in targets_copy) {
-						// targets that still exist in targets_copy were not in response
-						// they were deleted from server so remove them
-						if (!targets_copy[t]) {
-							// target was deleted
-							$(targets_copy[t]).remove();
-						}
-					}
 				});
+				for (var t in targets_copy) {
+					// targets that still exist in targets_copy were not in response
+					// they were deleted from server so remove them
+					if (targets_copy[t]) {
+						// target was deleted
+						console.log("removed: "+t);
+						$(targets_copy[t]).remove();
+						delete targets[t];
+					}
+				}
+
 			}
 		});
 	}
@@ -642,7 +678,7 @@
 					image.src = t.image;
 					image.id = t.pk;
 					targets[t.pk] = div;
-					if (t.sent) {
+					if (t.sent == "False") {
 						image.classList.add("sent");
 					}
 					image.addEventListener("click", function(e) {
@@ -840,7 +876,7 @@
 					.append("<tr><td>Longitude: </td><td>"+londeg+"deg "+lonmin+"min "+lonsec+"sec"+"</td></tr>")
 					.append("<tr><td>Type: </td><td>"+json.ptype+"</td></tr>")
 					.append("<tr><td>Description:</td><td>"+json.description+"</td></tr>")
-					.append("<tr><td><button id='targsubmit' onclick='tsubmit(" + pk+");' class='btn btn-primary'>Submit Target</button></td></tr>");
+					.append("<tr><td><button id='targsubmit' onclick='tsubmit(" + pk+");' class='btn btn-primary'>Submit</button></td></tr>");
 				$("#lpalette").val(json.alphanumeric_color);
 				$("#palette").val(json.background_color);
 				$("#orientation").val(json.orientation);
@@ -891,7 +927,7 @@
 			var p1;
 			var p2;
 			var cropinit = false;
-			var panning = true;
+			var panning = false;
 			var corner = [];
 			var boxW;
 			var boxH;
@@ -1183,7 +1219,8 @@
 						<td><input name="alphanumeric_color" type="text" value="black" id="lpalette"/></td>
 					</tr>
 				</table>
-				<button type="button" class="btn btn-primary" id="submit"/>Submit</button>
+				<button type="button" class="btn btn-primary" id="submit"/>Crop</button>
+				<button type="button" class="btn btn-primary" id="submitandinterop">Crop & Submit</button>
 			</form>
 		</div>
 		<div id="data">

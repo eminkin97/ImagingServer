@@ -219,10 +219,20 @@ class GCSViewset(viewsets.ModelViewSet):
 		picList = []
 		numPics = int(request.POST['numPics'])
 		callback = CountCallback(queue.method.message_count,numPics,picList,"int")
+		def on_timeout():
+			nonlocal connection
+			connection.close()
+		connection.add_timeout(4,on_timeout)
 		channel.basic_consume(callback,queue='pictures')
 		channel.start_consuming()
 		# we now have at least numpics in the list
-		connection.close()
+		try:
+			connection.close()
+			#print("sccc")
+		except pika.exceptions.ConnectionClosed:
+		#	print("broke")
+			return Response([])
+
 		pics = [Picture.objects.get(pk=int(id)) for id in picList]
 		#get the GCS viewer's picStack (pics they have viewed so far)
 		picStack = request.session['picstack']
@@ -316,7 +326,7 @@ class GCSViewset(viewsets.ModelViewSet):
 		#save the changes
 		target.save()
 
-		return Response("success")
+		return Response({"pk":target.pk})
 
 	@list_route(methods=['post'])
 	def targetEdit(self,request,pk=None):
@@ -389,7 +399,7 @@ class GCSViewset(viewsets.ModelViewSet):
 					return Response({'error':str(e)})
 
 			os.remove(target.picture.path)
-			Target.objects.delete(pk=request.data['pk'])
+			Target.objects.filter(pk=request.data['pk']).delete()
 			return HttpResponse('Success')
 		except Target.DoesNotExist:
 			pass
